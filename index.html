@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Powerwall Energy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap">
+<style>
+  /* Stand-ins for the dashboard runtime's theme tokens. Neutrals lean slightly green. */
+  :root {
+    --color-bg: #f5f6f3; --color-panel: #ffffff; --color-fg: #1b1f1c; --color-fg-muted: #5b645f;
+    --color-border-line: #e0e4df; --color-bad: #c43d3d;
+    --cds-border: #d5dad4; --cds-surface-popover: #ffffff; --cds-text-secondary: #5b645f;
+    --cds-shadow-popover: 0 6px 20px rgba(20, 30, 25, .12);
+    --cds-chart-grid: #eceee9; --cds-chart-axis: #b9bfb8; --cds-chart-muted: #c9cec7;
+    --s0: #d08a06; --s1: #2f6fd6; --s2: #1f9a69; --s3: #c0465a; --s4: #7b5bd3; --s5: #0f8fa3; --s6: #8a6d3b; --s7: #6b7280;
+    --font-anthropic-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --cds-font-size-caption: .8125rem; --cds-font-size-body: 1rem; --cds-font-size-heading: 1.0625rem; --cds-font-size-title: 2rem;
+    --cds-font-weight-medium: 500;
+    --cds-gap-xs: .25rem; --cds-gap-sm: .5rem; --cds-gap-md: 1rem; --cds-gap-lg: 1.5rem; --cds-gap-xl: 2.5rem;
+    --cds-pad-xs: .375rem; --cds-pad-sm: .625rem; --cds-pad-md: .875rem; --cds-pad-lg: 1.25rem;
+    --cds-radius: 10px; --cds-dur-slow: .3s;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #111412; --color-panel: #191d1a; --color-fg: #e9ede9; --color-fg-muted: #99a39c;
+      --color-border-line: #2a302c; --color-bad: #ef6b6b;
+      --cds-border: #353c37; --cds-surface-popover: #222723; --cds-text-secondary: #99a39c;
+      --cds-shadow-popover: 0 6px 20px rgba(0, 0, 0, .45);
+      --cds-chart-grid: #242a26; --cds-chart-axis: #4a524c; --cds-chart-muted: #4a524c;
+      --s0: #f0b23a; --s1: #6b9ff2; --s2: #3fc98e; --s3: #e87a8c; --s4: #a68cf0; --s5: #3cc2d6; --s6: #c9a46a; --s7: #9ca3af;
+      color-scheme: dark;
+    }
+  }
+  html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); }
+  #dash-root {
+    max-width: 1200px; margin-inline: auto; padding-block: 2rem 3rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .dash-skeleton { color: transparent; background: var(--color-border-line); border-radius: 6px; }
+  .site-foot { margin-top: 2.5rem; font-size: .8125rem; color: var(--color-fg-muted); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+  // A small stand-in for the dashboard runtime: embedded data, calculations, one filter.
+  window.dash = (function () {
+    const DATA = {"monthly_summary":[{"month":"2025-02","solar_kwh":"163.36","home_kwh":"344.74","grid_import_kwh":"196.03","grid_export_kwh":"0.07","battery_charge_kwh":"114.12","battery_discharge_kwh":"99.53","peak_home_kwh":"56.57","peak_grid_kwh":"24.95","cost_without_usd":"119.81","import_cost_usd":"67.75","export_credit_usd":"0.0","saved_solar_direct_usd":"16.98","saved_battery_usd":"35.07","battery_extra_usd":"31.38","nb_grid_import_kwh":"290.89","nb_grid_export_kwh":"109.51","nb_peak_grid_kwh":"51.13","nb_import_cost_usd":"101.24","nb_export_credit_usd":"3.45","nb_saved_solar_direct_usd":"18.57","net_cost_usd":"67.75","savings_usd":"52.06","self_powered_pct":"43.1","peak_self_powered_pct":"55.9","nb_net_cost_usd":"97.79","nb_savings_usd":"22.02","nb_self_powered_pct":"15.6","nb_peak_self_powered_pct":"9.6"},{"month":"2025-03","solar_kwh":"947.52","home_kwh":"1022.86","grid_import_kwh":"95.8","grid_export_kwh":"0.46","battery_charge_kwh":"530.24","battery_discharge_kwh":"510.25","peak_home_kwh":"219.93","peak_grid_kwh":"5.54","cost_without_usd":"357.33","import_cost_usd":"32.81","export_credit_usd":"0.03","saved_solar_direct_usd":"144.29","saved_battery_usd":"180.23","battery_extra_usd":"170.72","nb_grid_import_kwh":"601.37","nb_grid_export_kwh":"526.03","nb_peak_grid_kwh":"161.94","nb_import_cost_usd":"211.54","nb_export_credit_usd":"9.34","nb_saved_solar_direct_usd":"145.79","net_cost_usd":"32.78","savings_usd":"324.55","self_powered_pct":"90.6","peak_self_powered_pct":"97.5","nb_net_cost_usd":"202.2","nb_savings_usd":"155.13","nb_self_powered_pct":"41.2","nb_peak_self_powered_pct":"26.4"},{"month":"2025-04","solar_kwh":"735.45","home_kwh":"742.4","grid_import_kwh":"19.5","grid_export_kwh":"0.56","battery_charge_kwh":"387.05","battery_discharge_kwh":"375.05","peak_home_kwh":"144.57","peak_grid_kwh":"6.87","cost_without_usd":"258.97","import_cost_usd":"6.91","export_credit_usd":"0.03","saved_solar_direct_usd":"121.21","saved_battery_usd":"130.86","battery_extra_usd":"127.08","nb_grid_import_kwh":"392.88","nb_grid_export_kwh":"385.93","nb_peak_grid_kwh":"73.11","nb_import_cost_usd":"137.3","nb_export_credit_usd":"3.76","nb_saved_solar_direct_usd":"121.66","net_cost_usd":"6.87","savings_usd":"252.1","self_powered_pct":"97.4","peak_self_powered_pct":"95.2","nb_net_cost_usd":"133.54","nb_savings_usd":"125.43","nb_self_powered_pct":"47.1","nb_peak_self_powered_pct":"49.4"},{"month":"2025-05","solar_kwh":"2004.4","home_kwh":"881.38","grid_import_kwh":"2.31","grid_export_kwh":"1117.05","battery_charge_kwh":"385.28","battery_discharge_kwh":"377.0","peak_home_kwh":"206.53","peak_grid_kwh":"0.11","cost_without_usd":"308.53","import_cost_usd":"0.79","export_credit_usd":"13.91","saved_solar_direct_usd":"175.11","saved_battery_usd":"132.63","battery_extra_usd":"126.55","nb_grid_import_kwh":"342.44","nb_grid_export_kwh":"1465.45","nb_peak_grid_kwh":"82.84","nb_import_cost_usd":"120.39","nb_export_credit_usd":"19.26","nb_saved_solar_direct_usd":"188.14","net_cost_usd":"-13.12","savings_usd":"321.66","self_powered_pct":"99.7","peak_self_powered_pct":"99.9","nb_net_cost_usd":"101.13","nb_savings_usd":"207.4","nb_self_powered_pct":"61.1","nb_peak_self_powered_pct":"59.9"},{"month":"2025-06","solar_kwh":"1998.83","home_kwh":"891.18","grid_import_kwh":"12.59","grid_export_kwh":"1111.8","battery_charge_kwh":"393.8","battery_discharge_kwh":"385.36","peak_home_kwh":"221.67","peak_grid_kwh":"3.08","cost_without_usd":"404.09","import_cost_usd":"5.75","export_credit_usd":"63.56","saved_solar_direct_usd":"227.92","saved_battery_usd":"170.41","battery_extra_usd":"152.72","nb_grid_import_kwh":"336.46","nb_grid_export_kwh":"1444.11","nb_peak_grid_kwh":"79.26","nb_import_cost_usd":"154.59","nb_export_credit_usd":"77.25","nb_saved_solar_direct_usd":"249.49","net_cost_usd":"-57.8","savings_usd":"461.89","self_powered_pct":"98.6","peak_self_powered_pct":"98.6","nb_net_cost_usd":"77.35","nb_savings_usd":"326.74","nb_self_powered_pct":"62.2","nb_peak_self_powered_pct":"64.2"},{"month":"2025-07","solar_kwh":"1918.07","home_kwh":"1013.55","grid_import_kwh":"3.39","grid_export_kwh":"901.42","battery_charge_kwh":"431.44","battery_discharge_kwh":"424.94","peak_home_kwh":"297.75","peak_grid_kwh":"1.34","cost_without_usd":"468.36","import_cost_usd":"1.64","export_credit_usd":"66.09","saved_solar_direct_usd":"269.28","saved_battery_usd":"197.44","battery_extra_usd":"175.0","nb_grid_import_kwh":"398.15","nb_grid_export_kwh":"1302.67","nb_peak_grid_kwh":"105.64","nb_import_cost_usd":"184.13","nb_export_credit_usd":"84.63","nb_saved_solar_direct_usd":"284.24","net_cost_usd":"-64.45","savings_usd":"532.82","self_powered_pct":"99.7","peak_self_powered_pct":"99.6","nb_net_cost_usd":"99.49","nb_savings_usd":"368.87","nb_self_powered_pct":"60.7","nb_peak_self_powered_pct":"64.5"},{"month":"2025-08","solar_kwh":"1702.34","home_kwh":"1075.29","grid_import_kwh":"21.35","grid_export_kwh":"657.5","battery_charge_kwh":"460.18","battery_discharge_kwh":"469.28","peak_home_kwh":"322.31","peak_grid_kwh":"8.32","cost_without_usd":"499.82","import_cost_usd":"10.38","export_credit_usd":"76.07","saved_solar_direct_usd":"272.3","saved_battery_usd":"217.15","battery_extra_usd":"183.64","nb_grid_import_kwh":"439.89","nb_grid_export_kwh":"1066.95","nb_peak_grid_kwh":"144.75","nb_import_cost_usd":"209.89","nb_export_credit_usd":"100.85","nb_saved_solar_direct_usd":"289.93","net_cost_usd":"-65.7","savings_usd":"565.52","self_powered_pct":"98.0","peak_self_powered_pct":"97.4","nb_net_cost_usd":"109.05","nb_savings_usd":"390.77","nb_self_powered_pct":"59.1","nb_peak_self_powered_pct":"55.1"},{"month":"2025-09","solar_kwh":"1360.61","home_kwh":"949.8","grid_import_kwh":"5.76","grid_export_kwh":"389.0","battery_charge_kwh":"441.23","battery_discharge_kwh":"413.66","peak_home_kwh":"257.41","peak_grid_kwh":"1.29","cost_without_usd":"435.28","import_cost_usd":"2.55","export_credit_usd":"22.67","saved_solar_direct_usd":"233.9","saved_battery_usd":"198.84","battery_extra_usd":"174.47","nb_grid_import_kwh":"405.47","nb_grid_export_kwh":"816.28","nb_peak_grid_kwh":"139.97","nb_import_cost_usd":"194.36","nb_export_credit_usd":"45.7","nb_saved_solar_direct_usd":"240.92","net_cost_usd":"-20.13","savings_usd":"455.41","self_powered_pct":"99.4","peak_self_powered_pct":"99.5","nb_net_cost_usd":"148.67","nb_savings_usd":"286.62","nb_self_powered_pct":"57.3","nb_peak_self_powered_pct":"45.6"},{"month":"2025-10","solar_kwh":"1226.39","home_kwh":"804.2","grid_import_kwh":"2.56","grid_export_kwh":"414.0","battery_charge_kwh":"450.97","battery_discharge_kwh":"440.21","peak_home_kwh":"157.73","peak_grid_kwh":"0.07","cost_without_usd":"280.84","import_cost_usd":"0.87","export_credit_usd":"21.4","saved_solar_direct_usd":"124.9","saved_battery_usd":"155.07","battery_extra_usd":"131.94","nb_grid_import_kwh":"431.78","nb_grid_export_kwh":"853.98","nb_peak_grid_kwh":"109.35","nb_import_cost_usd":"152.05","nb_export_credit_usd":"43.88","nb_saved_solar_direct_usd":"128.79","net_cost_usd":"-20.53","savings_usd":"301.37","self_powered_pct":"99.7","peak_self_powered_pct":"100.0","nb_net_cost_usd":"108.17","nb_savings_usd":"172.67","nb_self_powered_pct":"46.3","nb_peak_self_powered_pct":"30.7"},{"month":"2025-11","solar_kwh":"843.8","home_kwh":"1024.7","grid_import_kwh":"261.92","grid_export_kwh":"85.74","battery_charge_kwh":"400.77","battery_discharge_kwh":"405.49","peak_home_kwh":"158.38","peak_grid_kwh":"20.63","cost_without_usd":"356.07","import_cost_usd":"90.13","export_credit_usd":"4.73","saved_solar_direct_usd":"122.11","saved_battery_usd":"143.83","battery_extra_usd":"123.56","nb_grid_import_kwh":"653.41","nb_grid_export_kwh":"472.5","nb_peak_grid_kwh":"148.76","nb_import_cost_usd":"229.19","nb_export_credit_usd":"24.2","nb_saved_solar_direct_usd":"126.88","net_cost_usd":"85.4","savings_usd":"270.67","self_powered_pct":"74.4","peak_self_powered_pct":"87.0","nb_net_cost_usd":"204.99","nb_savings_usd":"151.08","nb_self_powered_pct":"36.2","nb_peak_self_powered_pct":"6.1"},{"month":"2025-12","solar_kwh":"729.09","home_kwh":"1298.83","grid_import_kwh":"592.13","grid_export_kwh":"13.28","battery_charge_kwh":"350.49","battery_discharge_kwh":"341.38","peak_home_kwh":"194.32","peak_grid_kwh":"55.79","cost_without_usd":"451.32","import_cost_usd":"204.3","export_credit_usd":"0.86","saved_solar_direct_usd":"127.81","saved_battery_usd":"119.21","battery_extra_usd":"100.66","nb_grid_import_kwh":"908.18","nb_grid_export_kwh":"338.44","nb_peak_grid_kwh":"188.78","nb_import_cost_usd":"317.99","nb_export_credit_usd":"18.44","nb_saved_solar_direct_usd":"133.33","net_cost_usd":"203.43","savings_usd":"247.88","self_powered_pct":"54.4","peak_self_powered_pct":"71.3","nb_net_cost_usd":"299.55","nb_savings_usd":"151.77","nb_self_powered_pct":"30.1","nb_peak_self_powered_pct":"2.8"},{"month":"2026-01","solar_kwh":"928.42","home_kwh":"1361.7","grid_import_kwh":"496.91","grid_export_kwh":"51.36","battery_charge_kwh":"449.48","battery_discharge_kwh":"437.22","peak_home_kwh":"202.5","peak_grid_kwh":"38.0","cost_without_usd":"472.31","import_cost_usd":"170.94","export_credit_usd":"3.18","saved_solar_direct_usd":"146.11","saved_battery_usd":"155.26","battery_extra_usd":"128.66","nb_grid_import_kwh":"916.45","nb_grid_export_kwh":"483.17","nb_peak_grid_kwh":"188.29","nb_import_cost_usd":"320.16","nb_export_credit_usd":"28.61","nb_saved_solar_direct_usd":"152.15","net_cost_usd":"167.77","savings_usd":"304.54","self_powered_pct":"63.5","peak_self_powered_pct":"81.2","nb_net_cost_usd":"291.55","nb_savings_usd":"180.76","nb_self_powered_pct":"32.7","nb_peak_self_powered_pct":"7.0"},{"month":"2026-02","solar_kwh":"919.14","home_kwh":"1029.35","grid_import_kwh":"263.97","grid_export_kwh":"128.27","battery_charge_kwh":"434.13","battery_discharge_kwh":"408.63","peak_home_kwh":"167.07","peak_grid_kwh":"30.31","cost_without_usd":"357.5","import_cost_usd":"91.15","export_credit_usd":"4.2","saved_solar_direct_usd":"124.25","saved_battery_usd":"142.1","battery_extra_usd":"127.76","nb_grid_import_kwh":"647.24","nb_grid_export_kwh":"537.03","nb_peak_grid_kwh":"145.38","nb_import_cost_usd":"226.58","nb_export_credit_usd":"17.46","nb_saved_solar_direct_usd":"130.91","net_cost_usd":"86.94","savings_usd":"270.55","self_powered_pct":"74.4","peak_self_powered_pct":"81.9","nb_net_cost_usd":"209.12","nb_savings_usd":"148.38","nb_self_powered_pct":"37.1","nb_peak_self_powered_pct":"13.0"},{"month":"2026-03","solar_kwh":"1489.87","home_kwh":"815.93","grid_import_kwh":"5.63","grid_export_kwh":"685.0","battery_charge_kwh":"399.87","battery_discharge_kwh":"405.31","peak_home_kwh":"156.64","peak_grid_kwh":"0.05","cost_without_usd":"284.26","import_cost_usd":"1.91","export_credit_usd":"13.64","saved_solar_direct_usd":"139.88","saved_battery_usd":"142.47","battery_extra_usd":"135.56","nb_grid_import_kwh":"391.62","nb_grid_export_kwh":"1065.56","nb_peak_grid_kwh":"95.14","nb_import_cost_usd":"137.51","nb_export_credit_usd":"19.93","nb_saved_solar_direct_usd":"146.75","net_cost_usd":"-11.72","savings_usd":"295.98","self_powered_pct":"99.3","peak_self_powered_pct":"100.0","nb_net_cost_usd":"117.58","nb_savings_usd":"166.68","nb_self_powered_pct":"52.0","nb_peak_self_powered_pct":"39.3"},{"month":"2026-04","solar_kwh":"1508.32","home_kwh":"867.46","grid_import_kwh":"10.46","grid_export_kwh":"625.4","battery_charge_kwh":"409.72","battery_discharge_kwh":"383.79","peak_home_kwh":"159.07","peak_grid_kwh":"0.07","cost_without_usd":"302.02","import_cost_usd":"3.59","export_credit_usd":"3.72","saved_solar_direct_usd":"163.72","saved_battery_usd":"134.72","battery_extra_usd":"130.98","nb_grid_import_kwh":"375.98","nb_grid_export_kwh":"1016.83","nb_peak_grid_kwh":"80.21","nb_import_cost_usd":"131.77","nb_export_credit_usd":"7.12","nb_saved_solar_direct_usd":"170.25","net_cost_usd":"-0.14","savings_usd":"302.16","self_powered_pct":"98.8","peak_self_powered_pct":"100.0","nb_net_cost_usd":"124.65","nb_savings_usd":"177.37","nb_self_powered_pct":"56.7","nb_peak_self_powered_pct":"49.6"},{"month":"2026-05","solar_kwh":"1778.31","home_kwh":"867.32","grid_import_kwh":"17.5","grid_export_kwh":"919.14","battery_charge_kwh":"385.71","battery_discharge_kwh":"376.37","peak_home_kwh":"256.89","peak_grid_kwh":"7.63","cost_without_usd":"305.89","import_cost_usd":"6.26","export_credit_usd":"9.9","saved_solar_direct_usd":"170.13","saved_battery_usd":"129.5","battery_extra_usd":"123.12","nb_grid_import_kwh":"346.24","nb_grid_export_kwh":"1257.22","nb_peak_grid_kwh":"123.06","nb_import_cost_usd":"123.36","nb_export_credit_usd":"15.41","nb_saved_solar_direct_usd":"182.53","net_cost_usd":"-3.64","savings_usd":"309.53","self_powered_pct":"98.0","peak_self_powered_pct":"97.0","nb_net_cost_usd":"107.95","nb_savings_usd":"197.94","nb_self_powered_pct":"60.1","nb_peak_self_powered_pct":"52.1"},{"month":"2026-06","solar_kwh":"1882.36","home_kwh":"912.18","grid_import_kwh":"2.04","grid_export_kwh":"965.96","battery_charge_kwh":"339.04","battery_discharge_kwh":"332.78","peak_home_kwh":"290.7","peak_grid_kwh":"0.19","cost_without_usd":"428.29","import_cost_usd":"0.89","export_credit_usd":"45.89","saved_solar_direct_usd":"270.04","saved_battery_usd":"157.37","battery_extra_usd":"139.83","nb_grid_import_kwh":"306.84","nb_grid_export_kwh":"1277.02","nb_peak_grid_kwh":"92.31","nb_import_cost_usd":"145.09","nb_export_credit_usd":"60.99","nb_saved_solar_direct_usd":"283.21","net_cost_usd":"-45.0","savings_usd":"473.29","self_powered_pct":"99.8","peak_self_powered_pct":"99.9","nb_net_cost_usd":"84.1","nb_savings_usd":"344.2","nb_self_powered_pct":"66.4","nb_peak_self_powered_pct":"68.2"},{"month":"2026-07","solar_kwh":"1835.18","home_kwh":"766.24","grid_import_kwh":"0.98","grid_export_kwh":"1068.27","battery_charge_kwh":"295.04","battery_discharge_kwh":"293.39","peak_home_kwh":"266.31","peak_grid_kwh":"0.2","cost_without_usd":"363.97","import_cost_usd":"0.43","export_credit_usd":"68.93","saved_solar_direct_usd":"223.72","saved_battery_usd":"139.82","battery_extra_usd":"123.91","nb_grid_import_kwh":"264.82","nb_grid_export_kwh":"1333.76","nb_peak_grid_kwh":"82.57","nb_import_cost_usd":"125.81","nb_export_credit_usd":"80.85","nb_saved_solar_direct_usd":"238.16","net_cost_usd":"-68.5","savings_usd":"432.47","self_powered_pct":"99.9","peak_self_powered_pct":"99.9","nb_net_cost_usd":"44.96","nb_savings_usd":"319.01","nb_self_powered_pct":"65.4","nb_peak_self_powered_pct":"69.0"},{"month":"2026-08","solar_kwh":"1640.09","home_kwh":"893.32","grid_import_kwh":"17.63","grid_export_kwh":"754.95","battery_charge_kwh":"388.44","battery_discharge_kwh":"378.98","peak_home_kwh":"303.09","peak_grid_kwh":"8.48","cost_without_usd":"422.95","import_cost_usd":"8.92","export_credit_usd":"74.0","saved_solar_direct_usd":"238.35","saved_battery_usd":"175.67","battery_extra_usd":"143.11","nb_grid_import_kwh":"345.09","nb_grid_export_kwh":"1091.87","nb_peak_grid_kwh":"127.54","nb_import_cost_usd":"167.37","nb_export_credit_usd":"95.76","nb_saved_solar_direct_usd":"255.58","net_cost_usd":"-65.08","savings_usd":"488.03","self_powered_pct":"98.0","peak_self_powered_pct":"97.2","nb_net_cost_usd":"71.61","nb_savings_usd":"351.34","nb_self_powered_pct":"61.4","nb_peak_self_powered_pct":"57.9"},{"month":"2026-09","solar_kwh":"1440.56","home_kwh":"787.95","grid_import_kwh":"1.85","grid_export_kwh":"650.64","battery_charge_kwh":"342.65","battery_discharge_kwh":"338.82","peak_home_kwh":"197.77","peak_grid_kwh":"0.08","cost_without_usd":"356.67","import_cost_usd":"0.75","export_credit_usd":"37.32","saved_solar_direct_usd":"195.01","saved_battery_usd":"160.91","battery_extra_usd":"141.8","nb_grid_import_kwh":"320.05","nb_grid_export_kwh":"972.66","nb_peak_grid_kwh":"102.81","nb_import_cost_usd":"151.84","nb_export_credit_usd":"54.61","nb_saved_solar_direct_usd":"204.83","net_cost_usd":"-36.57","savings_usd":"393.24","self_powered_pct":"99.8","peak_self_powered_pct":"100.0","nb_net_cost_usd":"97.23","nb_savings_usd":"259.44","nb_self_powered_pct":"59.4","nb_peak_self_powered_pct":"48.0"},{"month":"2026-10","solar_kwh":"850.75","home_kwh":"533.34","grid_import_kwh":"12.17","grid_export_kwh":"334.82","battery_charge_kwh":"264.75","battery_discharge_kwh":"270.0","peak_home_kwh":"143.4","peak_grid_kwh":"2.06","cost_without_usd":"187.73","import_cost_usd":"4.25","export_credit_usd":"16.34","saved_solar_direct_usd":"87.22","saved_battery_usd":"96.26","battery_extra_usd":"82.91","nb_grid_import_kwh":"271.49","nb_grid_export_kwh":"588.9","nb_peak_grid_kwh":"98.75","nb_import_cost_usd":"96.74","nb_export_credit_usd":"29.06","nb_saved_solar_direct_usd":"90.99","net_cost_usd":"-12.09","savings_usd":"199.83","self_powered_pct":"97.7","peak_self_powered_pct":"98.6","nb_net_cost_usd":"67.68","nb_savings_usd":"120.05","nb_self_powered_pct":"49.1","nb_peak_self_powered_pct":"31.1"}],"hourly_profile":[{"hour":"0","period":"off_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.539","home_from_grid_kwh":"0.171","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.71","nb_grid_export_kwh":"0.0"},{"hour":"1","period":"off_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.546","home_from_grid_kwh":"0.21","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.756","nb_grid_export_kwh":"0.0"},{"hour":"2","period":"off_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.493","home_from_grid_kwh":"0.211","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.704","nb_grid_export_kwh":"0.0"},{"hour":"3","period":"off_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.482","home_from_grid_kwh":"0.269","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.751","nb_grid_export_kwh":"0.0"},{"hour":"4","period":"off_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.47","home_from_grid_kwh":"0.315","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.784","nb_grid_export_kwh":"0.0"},{"hour":"5","period":"off_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.479","home_from_grid_kwh":"0.378","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.857","nb_grid_export_kwh":"0.0"},{"hour":"6","period":"off_peak","home_from_solar_kwh":"0.037","home_from_battery_kwh":"0.463","home_from_grid_kwh":"0.428","solar_kwh":"0.037","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.037","nb_home_from_grid_kwh":"0.89","nb_grid_export_kwh":"0.0"},{"hour":"7","period":"off_peak","home_from_solar_kwh":"0.246","home_from_battery_kwh":"0.315","home_from_grid_kwh":"0.478","solar_kwh":"0.382","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.264","nb_home_from_grid_kwh":"0.775","nb_grid_export_kwh":"0.118"},{"hour":"8","period":"off_peak","home_from_solar_kwh":"0.627","home_from_battery_kwh":"0.106","home_from_grid_kwh":"0.254","solar_kwh":"1.618","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.69","nb_home_from_grid_kwh":"0.298","nb_grid_export_kwh":"0.928"},{"hour":"9","period":"off_peak","home_from_solar_kwh":"1.156","home_from_battery_kwh":"0.303","home_from_grid_kwh":"0.146","solar_kwh":"3.21","grid_export_kwh":"0.026","nb_home_from_solar_kwh":"1.186","nb_home_from_grid_kwh":"0.419","nb_grid_export_kwh":"2.025"},{"hour":"10","period":"off_peak","home_from_solar_kwh":"1.835","home_from_battery_kwh":"0.467","home_from_grid_kwh":"0.282","solar_kwh":"4.64","grid_export_kwh":"0.676","nb_home_from_solar_kwh":"1.855","nb_home_from_grid_kwh":"0.729","nb_grid_export_kwh":"2.785"},{"hour":"11","period":"off_peak","home_from_solar_kwh":"1.805","home_from_battery_kwh":"0.219","home_from_grid_kwh":"0.194","solar_kwh":"5.801","grid_export_kwh":"1.93","nb_home_from_solar_kwh":"1.85","nb_home_from_grid_kwh":"0.369","nb_grid_export_kwh":"3.951"},{"hour":"12","period":"off_peak","home_from_solar_kwh":"1.69","home_from_battery_kwh":"0.128","home_from_grid_kwh":"0.12","solar_kwh":"6.276","grid_export_kwh":"2.741","nb_home_from_solar_kwh":"1.753","nb_home_from_grid_kwh":"0.185","nb_grid_export_kwh":"4.523"},{"hour":"13","period":"off_peak","home_from_solar_kwh":"1.635","home_from_battery_kwh":"0.24","home_from_grid_kwh":"0.076","solar_kwh":"6.234","grid_export_kwh":"3.157","nb_home_from_solar_kwh":"1.732","nb_home_from_grid_kwh":"0.219","nb_grid_export_kwh":"4.502"},{"hour":"14","period":"off_peak","home_from_solar_kwh":"1.536","home_from_battery_kwh":"0.216","home_from_grid_kwh":"0.055","solar_kwh":"5.735","grid_export_kwh":"3.208","nb_home_from_solar_kwh":"1.623","nb_home_from_grid_kwh":"0.185","nb_grid_export_kwh":"4.113"},{"hour":"15","period":"partial_peak","home_from_solar_kwh":"1.243","home_from_battery_kwh":"0.329","home_from_grid_kwh":"0.044","solar_kwh":"4.542","grid_export_kwh":"2.749","nb_home_from_solar_kwh":"1.326","nb_home_from_grid_kwh":"0.29","nb_grid_export_kwh":"3.215"},{"hour":"16","period":"on_peak","home_from_solar_kwh":"1.031","home_from_battery_kwh":"0.347","home_from_grid_kwh":"0.027","solar_kwh":"3.13","grid_export_kwh":"1.795","nb_home_from_solar_kwh":"1.101","nb_home_from_grid_kwh":"0.305","nb_grid_export_kwh":"2.029"},{"hour":"17","period":"on_peak","home_from_solar_kwh":"0.85","home_from_battery_kwh":"0.535","home_from_grid_kwh":"0.066","solar_kwh":"1.821","grid_export_kwh":"0.825","nb_home_from_solar_kwh":"0.936","nb_home_from_grid_kwh":"0.515","nb_grid_export_kwh":"0.885"},{"hour":"18","period":"on_peak","home_from_solar_kwh":"0.537","home_from_battery_kwh":"0.611","home_from_grid_kwh":"0.076","solar_kwh":"0.824","grid_export_kwh":"0.213","nb_home_from_solar_kwh":"0.593","nb_home_from_grid_kwh":"0.632","nb_grid_export_kwh":"0.231"},{"hour":"19","period":"on_peak","home_from_solar_kwh":"0.164","home_from_battery_kwh":"0.898","home_from_grid_kwh":"0.082","solar_kwh":"0.184","grid_export_kwh":"0.016","nb_home_from_solar_kwh":"0.174","nb_home_from_grid_kwh":"0.971","nb_grid_export_kwh":"0.01"},{"hour":"20","period":"on_peak","home_from_solar_kwh":"0.008","home_from_battery_kwh":"1.454","home_from_grid_kwh":"0.19","solar_kwh":"0.008","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.008","nb_home_from_grid_kwh":"1.644","nb_grid_export_kwh":"0.0"},{"hour":"21","period":"partial_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"1.245","home_from_grid_kwh":"0.177","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"1.422","nb_grid_export_kwh":"0.0"},{"hour":"22","period":"partial_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.858","home_from_grid_kwh":"0.165","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"1.023","nb_grid_export_kwh":"0.0"},{"hour":"23","period":"partial_peak","home_from_solar_kwh":"0.0","home_from_battery_kwh":"0.608","home_from_grid_kwh":"0.144","solar_kwh":"0.0","grid_export_kwh":"0.0","nb_home_from_solar_kwh":"0.0","nb_home_from_grid_kwh":"0.752","nb_grid_export_kwh":"0.0"}]};
+    const calcs = {}, listeners = [];
+    let params = { scenario: 'actual' };
+    const data = (id) => {
+      if (DATA[id]) return { status: 'ok', data: DATA[id] };
+      const c = calcs[id];
+      if (c) {
+        if (!c.value) c.value = c.fn(...c.inputs.map((i) => data(i).data));
+        return { status: 'ok', data: c.value };
+      }
+      return { status: 'missing', data: [] };
+    };
+    const run = () => listeners.forEach((fn) => fn());
+    let width = window.innerWidth;
+    window.addEventListener('resize', () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      clearTimeout(run.t); run.t = setTimeout(run, 120);
+    });
+    return {
+      colors: ['--s0', '--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7'].map((v) => `var(${v})`),
+      data,
+      calc: (id, spec) => { calcs[id] = { inputs: spec.inputs, fn: spec.fn }; },
+      onData: (fn) => { listeners.push(fn); fn(); },
+      params: () => params,
+      setParams: (p) => { params = Object.assign({}, params, p); run(); },
+      resetParams: () => { params = { scenario: 'actual' }; run(); },
+      refresh: () => {}, setLink: () => {},
+    };
+  })();
+</script>
+</head>
+<body>
+<div id="dash-root">
+<style>
+  .pw { display: flex; flex-direction: column; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums; }
+  .pw-head { display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+  .pw-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .pw-range { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; }
+  .pw-lede { margin: 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-body); max-width: 70ch; }
+  .pw .pw-lede b { font-weight: 500; color: var(--color-fg); }
+  .pw-section { display: flex; flex-direction: column; gap: var(--cds-gap-md); }
+  .pw-h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+  .pw-sub { margin: 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .pw-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--cds-gap-md); }
+  .pw-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); min-width: 0; }
+  .pw-tile-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; }
+  .pw-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.1; }
+  .pw-unit { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-left: .25em; }
+  .pw-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--cds-gap-md); }
+  .pw-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+  .pw-card-title { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+  .pw-dot { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; flex: none; }
+  .pw-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pw-legend span { display: inline-flex; align-items: center; gap: var(--cds-gap-xs); }
+  .pw-chart { position: relative; min-height: 260px; }
+  .pw-chart svg { display: block; overflow: visible; }
+  .pw-chart text { fill: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .pw-split { display: flex; height: 1.25rem; border-radius: var(--cds-radius); overflow: hidden; gap: 2px; min-height: 1.25rem; }
+  .pw-split i { display: block; height: 100%; }
+  .pw-split-key { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); }
+  .pw-split-key > div { display: flex; flex-direction: column; gap: 2px; }
+  .pw-split-key .pw-legend { color: var(--color-fg-muted); }
+  .pw-split-key .pw-amt { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-heading); }
+  .pw-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 2; }
+  .pw-tip-h { color: var(--cds-text-secondary); margin-bottom: 2px; }
+  .pw-tip-row { display: flex; align-items: center; gap: var(--cds-gap-xs); }
+  .pw-tip-row b { margin-left: auto; padding-left: var(--cds-gap-md); font-weight: 500; }
+  .pw-fail { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-xs); min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .pw-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+  .pw-table-wrap { max-height: 30rem; overflow: auto; }
+  .pw-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); }
+  .pw-table th { position: sticky; top: 0; background: var(--color-panel); text-align: right; border-bottom: 1px solid var(--color-border-line); padding: 0; }
+  .pw-table th:first-child, .pw-table td:first-child { text-align: left; }
+  .pw-table th button { all: unset; cursor: pointer; display: block; padding: var(--cds-pad-xs) var(--cds-pad-sm); color: var(--color-fg-muted); font-weight: 500; width: 100%; box-sizing: border-box; }
+  .pw-table th button:focus-visible { outline: 2px solid var(--cds-chart-axis); outline-offset: -2px; }
+  .pw-table td { text-align: right; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .pw-toggle { display: inline-flex; align-self: flex-start; padding: 2px; gap: 2px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-panel); }
+  .pw-toggle button { all: unset; cursor: pointer; padding: var(--cds-pad-xs) var(--cds-pad-md); border-radius: var(--cds-radius); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pw-toggle button[aria-pressed="true"] { background: var(--color-bg); color: var(--color-fg); box-shadow: 0 0 0 1px var(--color-border-line); }
+  .pw-toggle button:focus-visible { outline: 2px solid var(--cds-chart-axis); outline-offset: 1px; }
+  .pw-method { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 80ch; line-height: 1.5; }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  @media (max-width: 40rem) { .pw-hide-narrow { display: none; } }
+</style>
+
+<div class="pw">
+  <header class="pw-head">
+    <p class="pw-range" id="range" data-source="year_totals" data-field="range" data-where="scenario=actual">—</p>
+    <h1 class="pw-title" id="top">Powerwall Energy</h1>
+    <p class="pw-lede" id="takeaway"><span class="dash-skeleton">—</span></p>
+    <div class="pw-toggle" role="group" aria-label="Scenario" id="scenario">
+      <button type="button" data-s="actual" aria-pressed="true">With Powerwall</button>
+      <button type="button" data-s="no_battery" aria-pressed="false">Without Powerwall</button>
+    </div>
+    <p class="pw-sub" id="scenario-note" hidden>Modeled from your real solar and home use, with no battery: each half hour, solar powers the home first, the surplus is sent to the grid and any shortfall is bought from PG&amp;E.</p>
+  </header>
+
+  <section class="pw-section" id="headline">
+    <div class="pw-tiles">
+      <div class="pw-tile"><div class="pw-tile-label">Saved</div><div class="pw-big dash-skeleton" data-source="year_totals" data-field="savings_usd" data-where="scenario=actual">—</div><div class="pw-note">vs buying all your power from PG&amp;E</div></div>
+      <div class="pw-tile"><div class="pw-tile-label">Paid for grid energy</div><div class="pw-big dash-skeleton" data-source="year_totals" data-field="net_cost_usd" data-where="scenario=actual">—</div><div class="pw-note">imports minus export credits</div></div>
+      <div class="pw-tile"><div class="pw-tile-label">Would have paid</div><div class="pw-big dash-skeleton" data-source="year_totals" data-field="cost_without_usd" data-where="scenario=actual">—</div><div class="pw-note">same usage, no solar or battery</div></div>
+      <div class="pw-tile"><div class="pw-tile-label">Self-powered</div><div><span class="pw-big dash-skeleton" data-source="year_totals" data-field="self_powered_pct" data-where="scenario=actual">—</span><span class="pw-unit">%</span></div><div class="pw-note">of home use not bought from the grid</div></div>
+      <div class="pw-tile"><div class="pw-tile-label">Self-powered, 4–9 pm peak</div><div><span class="pw-big dash-skeleton" data-source="year_totals" data-field="peak_self_powered_pct" data-where="scenario=actual">—</span><span class="pw-unit">%</span></div><div class="pw-note">when PG&amp;E charges the most</div></div>
+      <div class="pw-tile"><div class="pw-tile-label">Solar generated</div><div><span class="pw-big dash-skeleton" data-source="year_totals" data-field="solar_kwh" data-where="scenario=actual">—</span><span class="pw-unit">kWh</span></div><div class="pw-note"><span data-source="year_totals" data-field="home_kwh" data-where="scenario=actual">—</span> kWh used at home</div></div>
+    </div>
+  </section>
+
+  <section class="pw-section" id="savings">
+    <h2 class="pw-h2">Where the savings came from</h2>
+    <div class="pw-card" id="split-card">
+      <div class="pw-split dash-skeleton" id="split" data-source="year_totals"></div>
+      <div class="pw-split-key">
+        <div><span class="pw-legend"><span><i class="pw-dot" data-c="0"></i>Solar used as it was made</span></span><span class="pw-amt" data-source="year_totals" data-field="saved_solar_direct_usd" data-where="scenario=actual">—</span></div>
+        <div><span class="pw-legend"><span><i class="pw-dot" data-c="2"></i>Battery powering the home</span></span><span class="pw-amt" data-source="year_totals" data-field="saved_battery_usd" data-where="scenario=actual">—</span></div>
+        <div><span class="pw-legend"><span><i class="pw-dot" data-c="4"></i>Credits for power sent to the grid</span></span><span class="pw-amt" data-source="year_totals" data-field="export_credit_usd" data-where="scenario=actual">—</span></div>
+      </div>
+      <p class="pw-sub" id="split-note"></p>
+    </div>
+    <div class="pw-grid">
+      <div class="pw-card" id="savings-card">
+        <h3 class="pw-card-title">Savings by month</h3>
+        <p class="pw-sub">In dollars, by source.</p>
+        <div class="pw-legend" id="savings-legend" data-source="monthly_summary"></div>
+        <div class="pw-chart" id="savings-chart" data-source="monthly_summary"></div>
+      </div>
+      <div class="pw-card" id="cost-card">
+        <h3 class="pw-card-title">Your energy bill by month</h3>
+        <p class="pw-sub">What you paid for grid energy after export credits, next to what the same usage would have cost. Below zero means credits exceeded charges.</p>
+        <div class="pw-legend" id="cost-legend" data-source="monthly_summary"></div>
+        <div class="pw-chart" id="cost-chart" data-source="monthly_summary"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pw-section" id="energy">
+    <h2 class="pw-h2">How the system runs</h2>
+    <div class="pw-grid">
+      <div class="pw-card" id="day-card">
+        <h3 class="pw-card-title">An average day</h3>
+        <p class="pw-sub">Home use by hour and where it came from, averaged over the year, in kWh. The shaded band is the 4–9 pm peak.</p>
+        <div class="pw-legend" id="day-legend" data-source="hourly_profile"></div>
+        <div class="pw-chart" id="day-chart" data-source="hourly_profile"></div>
+      </div>
+      <div class="pw-card" id="energy-card">
+        <h3 class="pw-card-title">Solar vs home use by month</h3>
+        <p class="pw-sub">In kWh. Winter months fall short and draw on the grid.</p>
+        <div class="pw-legend" id="energy-legend" data-source="monthly_summary"></div>
+        <div class="pw-chart" id="energy-chart" data-source="monthly_summary"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pw-section" id="months">
+    <div class="pw-card" id="table-card">
+      <h3 class="pw-card-title">Every month since installation</h3>
+      <p class="pw-sub">Click a column to sort. February 2025 starts on the 20th and the latest month is to date.</p>
+      <div class="pw-table-wrap">
+        <table class="pw-table" id="month-table" data-source="monthly_summary" data-row-key="month">
+          <thead><tr>
+            <th data-field="month"><button type="button" data-k="month">Month</button></th>
+            <th data-field="solar_kwh" class="pw-hide-narrow"><button type="button" data-k="solar_kwh">Solar kWh</button></th>
+            <th data-field="home_kwh" class="pw-hide-narrow"><button type="button" data-k="home_kwh">Home kWh</button></th>
+            <th data-field="cost_without_usd"><button type="button" data-k="cost_without_usd">Would pay</button></th>
+            <th data-field="net_cost_usd"><button type="button" data-k="net_cost_usd">Paid</button></th>
+            <th data-field="savings_usd"><button type="button" data-k="savings_usd">Saved</button></th>
+            <th data-field="self_powered_pct"><button type="button" data-k="self_powered_pct">Self-powered</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="pw-section" id="method">
+    <h2 class="pw-h2">How this is calculated</h2>
+    <p class="pw-method">Every 30 minutes of Powerwall history is priced at the rate plan saved in your Tesla app: PG&amp;E Residential Time-of-Use Electric Home, NEM 3.0 (2025). Grid purchases and the no-solar comparison use the buy price for that season and hour. Power sent to the grid earns that month's NEM 3.0 export rate for the hour, which is a few cents at midday and higher in the evening. The same 2025 rates are used for every month. Fixed monthly charges, taxes and fees aren't included, so your real bill is higher than "Paid" by those amounts. The Tesla app reports bigger savings because it appears to credit exports at close to the retail price. "Without Powerwall" replays the same solar output and home use with no battery: solar powers the home as it's made, the surplus is exported and the rest is bought. It assumes the panels would produce the same energy through a separate solar inverter, since the Powerwall 3 also serves as yours.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  const C = dash.colors;
+  // series colors: 0 solar, 1 home use, 2 battery, 3 grid, 4 export credits
+  document.querySelectorAll('.pw-dot[data-c]').forEach(d => { d.style.background = C[+d.dataset.c]; });
+  const num = v => (v === '' || v == null) ? 0 : Number(v);
+
+  dash.calc('year_totals', {
+    inputs: ['monthly_summary'],
+    title: 'Last 12 full months',
+    description: 'Sums over the 12 complete months before the current one, with the Powerwall (actual) and without it (modeled).',
+    fn: (monthly_summary) => {
+      const rows = monthly_summary.slice().sort((a, b) => a.month < b.month ? -1 : 1).slice(0, -1).slice(-12);
+      const s = k => rows.reduce((a, r) => a + Number(r[k] || 0), 0);
+      const label = m => new Date(m + '-15').toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+      const range = label(rows[0].month) + ' to ' + label(rows[rows.length - 1].month);
+      const batteryValue = Math.round(s('savings_usd') - s('nb_savings_usd'));
+      const row = (scenario, p) => ({
+        scenario, range,
+        savings_usd: Math.round(s(p + 'savings_usd')),
+        net_cost_usd: Math.round(s(p + 'net_cost_usd')),
+        cost_without_usd: Math.round(s('cost_without_usd')),
+        saved_solar_direct_usd: Math.round(s(p + 'saved_solar_direct_usd')),
+        saved_battery_usd: p ? 0 : Math.round(s('saved_battery_usd')),
+        export_credit_usd: Math.round(s(p + 'export_credit_usd')),
+        battery_value_usd: batteryValue,
+        solar_kwh: Math.round(s('solar_kwh')),
+        home_kwh: Math.round(s('home_kwh')),
+        self_powered_pct: Math.round((1 - s(p + 'grid_import_kwh') / s('home_kwh')) * 1000) / 10,
+        peak_self_powered_pct: Math.round((1 - s(p + 'peak_grid_kwh') / s('peak_home_kwh')) * 1000) / 10,
+        savings_pct: Math.round(s(p + 'savings_usd') / s('cost_without_usd') * 100),
+      });
+      return [row('actual', ''), row('no_battery', 'nb_')];
+    },
+  });
+
+  const usd = d3.format('$,.0f'), usd2 = d3.format('$,.2f'), fmt0 = d3.format(',.0f'), fmt1 = d3.format(',.1f');
+  const parseMonth = d3.utcParse('%Y-%m'), mShort = d3.utcFormat('%b'), mLong = d3.utcFormat('%B %Y'), mYear = d3.utcFormat('%b %Y');
+
+  function setText(el, text) { el.textContent = text; el.classList.remove('dash-skeleton'); }
+  function fill(field, text, sc) {
+    document.querySelectorAll(`[data-source="year_totals"][data-field="${field}"]`).forEach(el => { el.dataset.where = 'scenario=' + sc; setText(el, text); });
+  }
+  // Each scenario reads its own columns; nb_ is the modeled no-battery case.
+  const col = (sc, k) => sc === 'no_battery' ? 'nb_' + k : k;
+  const scenario = () => dash.params().scenario === 'no_battery' ? 'no_battery' : 'actual';
+  function failed(el) { el.innerHTML = ''; const d = document.createElement('div'); d.className = 'pw-fail'; d.textContent = 'Failed to load'; el.appendChild(d); }
+
+  function legend(el, items) {
+    el.innerHTML = '';
+    items.forEach(([name, color, kind]) => {
+      const s = document.createElement('span'), sw = document.createElement('i');
+      sw.className = 'pw-dot'; sw.style.background = color;
+      if (kind === 'line') { sw.style.borderRadius = '1px'; sw.style.height = '2px'; sw.style.width = '.9rem'; }
+      if (kind === 'band') { sw.style.borderRadius = '2px'; sw.style.width = '.9rem'; sw.style.height = '.6rem'; }
+      s.append(sw, document.createTextNode(name));
+      el.appendChild(s);
+    });
+  }
+
+  function tip(box) {
+    let t = box.querySelector('.pw-tip');
+    if (!t) { t = document.createElement('div'); t.className = 'pw-tip'; t.hidden = true; box.appendChild(t); }
+    return {
+      show(x, y, head, rows) {
+        t.innerHTML = '';
+        const h = document.createElement('div'); h.className = 'pw-tip-h'; h.textContent = head; t.appendChild(h);
+        rows.forEach(([name, color, val]) => {
+          const r = document.createElement('div'); r.className = 'pw-tip-row';
+          if (color) { const d = document.createElement('i'); d.className = 'pw-dot'; d.style.background = color; r.appendChild(d); }
+          r.appendChild(document.createTextNode(name));
+          const b = document.createElement('b'); b.textContent = val; r.appendChild(b);
+          t.appendChild(r);
+        });
+        t.hidden = false;
+        const bw = box.clientWidth, tw = t.offsetWidth, th = t.offsetHeight;
+        let left = x + 12; if (left + tw > bw) left = x - tw - 12; if (left < 0) left = 0;
+        t.style.left = left + 'px';
+        t.style.top = Math.max(0, y - th / 2) + 'px';
+      },
+      hide() { t.hidden = true; },
+    };
+  }
+
+  // Draw a y axis, then return its widest tick label so the plot can start after it.
+  function yAxis(svg, y, fmt, ticks) {
+    const g = svg.append('g').call(d3.axisLeft(y).ticks(ticks).tickFormat(fmt).tickSize(0).tickPadding(6));
+    g.attr('font-size', null).attr('font-family', null);
+    g.select('.domain').remove();
+    let w = 0; g.selectAll('text').each(function () { w = Math.max(w, this.getComputedTextLength()); });
+    return { g, w };
+  }
+  function gridlines(svg, y, x0, x1, ticks) {
+    svg.append('g').selectAll('line').data(y.ticks(ticks)).join('line')
+      .attr('x1', x0).attr('x2', x1).attr('y1', d => y(d)).attr('y2', d => y(d))
+      .attr('stroke', d => d === 0 ? 'var(--cds-chart-axis)' : 'var(--cds-chart-grid)').attr('stroke-width', 1);
+  }
+  function monthLabels(svg, x, data, W, ml, H) {
+    const every = Math.ceil(data.length / Math.max(2, Math.floor((W - ml) / 44)));
+    svg.append('g').selectAll('text').data(data.filter((d, i) => i % every === 0)).join('text')
+      .attr('x', d => x(d.m) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle')
+      .text(d => mShort(d.d));
+  }
+  function frame(box, yDomain, fmt, ticks) {
+    box.innerHTML = '';
+    const W = box.clientWidth, H = 260, m = { t: 10, r: 8, b: 26 };
+    const y = d3.scaleLinear(yDomain, [H - m.b, m.t]).nice();
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const ax = yAxis(svg, y, fmt, ticks);
+    const ml = ax.w + 10; ax.g.attr('transform', `translate(${ml},0)`);
+    gridlines(svg, y, ml, W - m.r, ticks);
+    return { W, H, m, y, svg, ml };
+  }
+  // The 12 complete months before the current one, oldest first.
+  function lastYear(rows) {
+    return rows.slice().sort((a, b) => a.month < b.month ? -1 : 1).slice(0, -1).slice(-12)
+      .map(r => Object.assign({ m: r.month, d: parseMonth(r.month) }, r));
+  }
+
+  function drawSavings(box, rows, sc) {
+    const data = lastYear(rows).map(r => ({ m: r.m, d: r.d, solar: num(r[col(sc, 'saved_solar_direct_usd')]), battery: sc === 'no_battery' ? 0 : num(r.saved_battery_usd), exp: num(r[col(sc, 'export_credit_usd')]), total: num(r[col(sc, 'savings_usd')]) }));
+    const keys = [['solar', 'Solar used directly', C[0]], ['battery', 'Battery', C[2]], ['exp', 'Export credits', C[4]]];
+    // One scale for both scenarios, so the toggle shows the difference in bar height.
+    const top = d3.max(lastYear(rows), r => Math.max(num(r.saved_solar_direct_usd) + Math.max(0, num(r.saved_battery_usd)) + num(r.export_credit_usd), num(r.nb_saved_solar_direct_usd) + num(r.nb_export_credit_usd)));
+    const { W, H, m, y, svg, ml } = frame(box, [0, top], d => usd(d), 5);
+    const x = d3.scaleBand(data.map(d => d.m), [ml, W - m.r]).paddingInner(0.3).paddingOuter(0.1);
+    monthLabels(svg, x, data, W, ml, H);
+    const bw = Math.min(32, x.bandwidth()), off = (x.bandwidth() - bw) / 2;
+    const g = svg.append('g').selectAll('g').data(data).join('g').attr('transform', d => `translate(${x(d.m) + off},0)`);
+    g.each(function (d) {
+      let acc = 0;
+      const sel = d3.select(this);
+      keys.forEach(([k, , c], i) => {
+        const v = Math.max(0, d[k]), top = acc + v;
+        const last = i === keys.length - 1;
+        sel.append('rect').attr('width', bw).attr('y', y(top)).attr('height', Math.max(0, y(acc) - y(top))).attr('fill', c).attr('rx', last ? Math.min(4, bw / 2) : 0);
+        acc = top;
+      });
+    });
+    const tt = tip(box);
+    g.append('rect').attr('x', -off).attr('width', x.bandwidth()).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev, d) => {
+        const [px, py] = d3.pointer(ev, box);
+        tt.show(px, py, mLong(d.d), keys.map(([k, n, c]) => [n, c, usd(d[k])]).concat([['Total saved', null, usd(d.total)]]));
+      })
+      .on('pointerleave', () => tt.hide());
+  }
+
+  function drawCost(box, rows, sc) {
+    const other = sc === 'no_battery' ? 'actual' : 'no_battery';
+    const data = lastYear(rows).map(r => ({ m: r.m, d: r.d, without: num(r.cost_without_usd), paid: num(r[col(sc, 'net_cost_usd')]), imp: num(r[col(sc, 'import_cost_usd')]), exp: num(r[col(sc, 'export_credit_usd')]), alt: num(r[col(other, 'net_cost_usd')]) }));
+    const { W, H, m, y, svg, ml } = frame(box, [Math.min(0, d3.min(data, d => Math.min(d.paid, d.alt))), d3.max(data, d => d.without)], d => usd(d), 5);
+    const x = d3.scaleBand(data.map(d => d.m), [ml, W - m.r]).paddingInner(0.25).paddingOuter(0.1);
+    const xi = d3.scaleBand(['without', 'paid'], [0, x.bandwidth()]).padding(0.1);
+    monthLabels(svg, x, data, W, ml, H);
+    const bw = Math.min(16, xi.bandwidth());
+    const g = svg.append('g').selectAll('g').data(data).join('g').attr('transform', d => `translate(${x(d.m)},0)`);
+    [['without', 'var(--cds-chart-muted)'], ['paid', C[3]]].forEach(([k, c]) => {
+      g.append('rect').attr('x', xi(k) + (xi.bandwidth() - bw) / 2).attr('width', bw)
+        .attr('y', d => y(Math.max(0, d[k]))).attr('height', d => Math.abs(y(d[k]) - y(0))).attr('rx', Math.min(4, bw / 2)).attr('fill', c);
+    });
+    const tt = tip(box);
+    g.append('rect').attr('width', x.bandwidth()).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev, d) => {
+        const [px, py] = d3.pointer(ev, box);
+        tt.show(px, py, mLong(d.d), [['Would have paid', 'var(--cds-chart-muted)', usd(d.without)], ['Paid', C[3], usd(d.paid)], ['Grid purchases', null, usd(d.imp)], ['Export credits', null, '−' + usd(d.exp)], [sc === 'no_battery' ? 'Paid with Powerwall' : 'Paid without Powerwall', null, usd(d.alt)]]);
+      })
+      .on('pointerleave', () => tt.hide());
+  }
+
+  function drawEnergy(box, rows) {
+    const data = lastYear(rows).map(r => ({ m: r.m, d: r.d, solar: num(r.solar_kwh), home: num(r.home_kwh), imp: num(r.grid_import_kwh), exp: num(r.grid_export_kwh) }));
+    const { W, H, m, y, svg, ml } = frame(box, [0, d3.max(data, d => Math.max(d.solar, d.home))], d3.format(','), 5);
+    const x = d3.scaleBand(data.map(d => d.m), [ml, W - m.r]).paddingInner(0.25).paddingOuter(0.1);
+    const xi = d3.scaleBand(['solar', 'home'], [0, x.bandwidth()]).padding(0.1);
+    monthLabels(svg, x, data, W, ml, H);
+    const bw = Math.min(16, xi.bandwidth());
+    const g = svg.append('g').selectAll('g').data(data).join('g').attr('transform', d => `translate(${x(d.m)},0)`);
+    [['solar', C[0]], ['home', C[1]]].forEach(([k, c]) => {
+      g.append('rect').attr('x', xi(k) + (xi.bandwidth() - bw) / 2).attr('width', bw)
+        .attr('y', d => y(d[k])).attr('height', d => Math.max(0, y(0) - y(d[k]))).attr('rx', Math.min(4, bw / 2)).attr('fill', c);
+    });
+    const tt = tip(box);
+    g.append('rect').attr('width', x.bandwidth()).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev, d) => {
+        const [px, py] = d3.pointer(ev, box);
+        tt.show(px, py, mLong(d.d), [['Solar generated', C[0], fmt0(d.solar) + ' kWh'], ['Home used', C[1], fmt0(d.home) + ' kWh'], ['Bought from grid', null, fmt0(d.imp) + ' kWh'], ['Sent to grid', null, fmt0(d.exp) + ' kWh']]);
+      })
+      .on('pointerleave', () => tt.hide());
+  }
+
+  function drawDay(box, rows, sc) {
+    const nb = sc === 'no_battery';
+    const data = rows.map(r => ({ h: num(r.hour), period: r.period, solar: num(r[col(sc, 'home_from_solar_kwh')]), battery: nb ? 0 : num(r.home_from_battery_kwh), grid: num(r[col(sc, 'home_from_grid_kwh')]), gen: num(r.solar_kwh) })).sort((a, b) => a.h - b.h);
+    const keys = [['solar', 'From solar', C[0]], ['battery', 'From battery', C[2]], ['grid', 'From grid', C[3]]];
+    const { W, H, m, y, svg, ml } = frame(box, [0, d3.max(data, d => Math.max(d.gen, d.solar + d.battery + d.grid))], d => d, 5);
+    const x = d3.scaleBand(data.map(d => d.h), [ml, W - m.r]).paddingInner(0.2);
+    const peak = data.filter(d => d.period === 'on_peak');
+    if (peak.length) {
+      const x0 = x(peak[0].h) - x.step() * x.paddingInner() / 2, x1 = x(peak[peak.length - 1].h) + x.bandwidth() + x.step() * x.paddingInner() / 2;
+      svg.insert('rect', ':first-child').attr('x', x0).attr('width', x1 - x0).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'var(--cds-chart-grid)');
+    }
+    const hl = h => h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p';
+    const step = W < 420 ? 6 : 3;
+    svg.append('g').selectAll('text').data(data.filter(d => d.h % step === 0)).join('text')
+      .attr('x', d => x(d.h) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle').text(d => hl(d.h));
+    const g = svg.append('g').selectAll('g').data(data).join('g').attr('transform', d => `translate(${x(d.h)},0)`);
+    g.each(function (d) {
+      let acc = 0;
+      const sel = d3.select(this);
+      keys.forEach(([k, , c], i) => {
+        const top = acc + d[k];
+        sel.append('rect').attr('width', x.bandwidth()).attr('y', y(top)).attr('height', Math.max(0, y(acc) - y(top))).attr('fill', c).attr('rx', i === keys.length - 1 ? Math.min(3, x.bandwidth() / 2) : 0);
+        acc = top;
+      });
+    });
+    svg.append('path').datum(data).attr('fill', 'none').attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 2).attr('stroke-dasharray', '4 3')
+      .attr('stroke-linejoin', 'round').attr('d', d3.line().x(d => x(d.h) + x.bandwidth() / 2).y(d => y(d.gen)));
+    const tt = tip(box);
+    const name = { off_peak: 'off-peak', partial_peak: 'partial peak', on_peak: 'peak' };
+    g.append('rect').attr('x', -x.step() * x.paddingInner() / 2).attr('width', x.step()).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev, d) => {
+        const [px, py] = d3.pointer(ev, box);
+        tt.show(px, py, `${hl(d.h)}–${hl((d.h + 1) % 24)}, ${name[d.period] || d.period}`, keys.map(([k, n, c]) => [n, c, fmt1(d[k]) + ' kWh']).concat([['Solar generated', null, fmt1(d.gen) + ' kWh']]));
+      })
+      .on('pointerleave', () => tt.hide());
+  }
+
+  let sortKey = 'month', sortDir = -1;
+  function drawTable(rows, sc) {
+    const table = document.getElementById('month-table'), body = table.querySelector('tbody');
+    table.querySelectorAll('th button').forEach(b => {
+      const base = b.dataset.base || (b.dataset.base = b.dataset.k);
+      const scoped = ['net_cost_usd', 'savings_usd', 'self_powered_pct'].includes(base);
+      b.dataset.k = scoped ? col(sc, base) : base;
+      b.parentNode.dataset.field = b.dataset.k;
+      if (base === sortKey.replace(/^nb_/, '')) sortKey = b.dataset.k;
+    });
+    body.innerHTML = '';
+    const sorted = rows.slice().sort((a, b) => {
+      const va = sortKey === 'month' ? a.month : Number(a[sortKey]), vb = sortKey === 'month' ? b.month : Number(b[sortKey]);
+      return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+    });
+    sorted.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = r.month;
+      const cells = [[mYear(parseMonth(r.month))], [fmt0(num(r.solar_kwh)), 1], [fmt0(num(r.home_kwh)), 1], [usd2(num(r.cost_without_usd))], [usd2(num(r[col(sc, 'net_cost_usd')]))], [usd2(num(r[col(sc, 'savings_usd')]))], [fmt1(num(r[col(sc, 'self_powered_pct')])) + '%']];
+      cells.forEach(([c, narrow]) => { const td = document.createElement('td'); td.textContent = c; if (narrow) td.className = 'pw-hide-narrow'; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+    table.querySelectorAll('th').forEach(th => {
+      const k = th.querySelector('button').dataset.k;
+      th.setAttribute('aria-sort', k === sortKey ? (sortDir > 0 ? 'ascending' : 'descending') : 'none');
+    });
+  }
+  document.querySelectorAll('#month-table th button').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k;
+    sortDir = k === sortKey ? -sortDir : -1; sortKey = k;
+    const d = dash.data('monthly_summary'); if (d.status === 'ok') drawTable(d.data, scenario());
+  }));
+
+  legend(document.getElementById('savings-legend'), [['Solar used directly', C[0]], ['Battery', C[2]], ['Export credits', C[4]]]);
+  legend(document.getElementById('cost-legend'), [['Would have paid', 'var(--cds-chart-muted)'], ['Paid', C[3]]]);
+  legend(document.getElementById('energy-legend'), [['Solar generated', C[0]], ['Home used', C[1]]]);
+  legend(document.getElementById('day-legend'), [['From solar', C[0]], ['From battery', C[2]], ['From grid', C[3]], ['Solar generated', 'var(--color-fg-muted)', 'line'], ['Peak hours', 'var(--cds-chart-grid)', 'band']]);
+
+  document.querySelectorAll('#scenario button').forEach(b => b.addEventListener('click', () => dash.setParams({ scenario: b.dataset.s })));
+
+  dash.onData(() => {
+    const sc = scenario();
+    document.querySelectorAll('#scenario button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === sc)));
+    document.getElementById('scenario-note').hidden = sc !== 'no_battery';
+    const yr = dash.data('year_totals'), lede = document.getElementById('takeaway'), split = document.getElementById('split'), note = document.getElementById('split-note');
+    if (yr.status === 'ok' && yr.data.length) {
+      const t = yr.data.find(r => r.scenario === sc), alt = yr.data.find(r => r.scenario !== sc);
+      fill('range', t.range, sc);
+      ['savings_usd', 'net_cost_usd', 'cost_without_usd', 'saved_solar_direct_usd', 'saved_battery_usd', 'export_credit_usd'].forEach(k => fill(k, usd(t[k]), sc));
+      ['solar_kwh', 'home_kwh'].forEach(k => fill(k, fmt0(t[k]), sc));
+      ['self_powered_pct', 'peak_self_powered_pct'].forEach(k => fill(k, fmt1(t[k]), sc));
+      // Sentences mixing words and marked figures; each figure names its scenario row.
+      const write = (el, parts) => {
+        el.innerHTML = '';
+        parts.forEach(p => {
+          if (typeof p === 'string') { el.appendChild(document.createTextNode(p)); return; }
+          const [row, field, text] = p, b = document.createElement('b');
+          b.dataset.source = 'year_totals'; b.dataset.field = field; b.dataset.where = 'scenario=' + row.scenario; b.textContent = text;
+          el.appendChild(b);
+        });
+      };
+      if (sc === 'actual') {
+        write(lede, ['Solar and the Powerwall cut your energy costs by ', [t, 'savings_pct', String(t.savings_pct)], '% this year. You paid ',
+          [t, 'net_cost_usd', usd(t.net_cost_usd)], ' for grid energy after export credits, instead of the ', [t, 'cost_without_usd', usd(t.cost_without_usd)], ' your home\'s usage would have cost.']);
+        write(note, ['Battery is net of any grid power used to charge it. With solar alone you would have saved ', [alt, 'savings_usd', usd(alt.savings_usd)],
+          ', so the Powerwall adds ', [t, 'battery_value_usd', usd(t.battery_value_usd)], ' a year.']);
+      } else {
+        write(lede, ['Without the Powerwall, solar alone would have cut your energy costs by ', [t, 'savings_pct', String(t.savings_pct)], '%. You would have paid ',
+          [t, 'net_cost_usd', usd(t.net_cost_usd)], ' for grid energy instead of ', [alt, 'net_cost_usd', usd(alt.net_cost_usd)], ', so the battery is worth ', [t, 'battery_value_usd', usd(t.battery_value_usd)], ' a year.']);
+        write(note, ['With no battery, most midday solar is exported at low NEM 3.0 rates and evening power is bought at peak prices. Peak hours drop from ',
+          [alt, 'peak_self_powered_pct', fmt1(alt.peak_self_powered_pct) + '%'], ' to ', [t, 'peak_self_powered_pct', fmt1(t.peak_self_powered_pct) + '%'], ' self-powered.']);
+      }
+      split.innerHTML = ''; split.classList.remove('dash-skeleton');
+      const parts = [[t.saved_solar_direct_usd, C[0]], [Math.max(0, t.saved_battery_usd), C[2]], [t.export_credit_usd, C[4]]];
+      const scale = d3.max(yr.data, r => r.saved_solar_direct_usd + Math.max(0, r.saved_battery_usd) + r.export_credit_usd);
+      parts.forEach(([v, c]) => { if (v <= 0) return; const i = document.createElement('i'); i.style.background = c; i.style.width = (100 * v / scale) + '%'; split.appendChild(i); });
+    } else if (yr.status === 'error') { failed(split); }
+
+    [['monthly_summary', 'savings-chart', drawSavings], ['monthly_summary', 'cost-chart', drawCost], ['monthly_summary', 'energy-chart', drawEnergy], ['hourly_profile', 'day-chart', drawDay]].forEach(([id, el, fn]) => {
+      const d = dash.data(id), box = document.getElementById(el);
+      if (d.status === 'ok') fn(box, d.data, sc);
+      else if (d.status === 'error') failed(box);
+      else box.innerHTML = '';
+    });
+    const mt = dash.data('monthly_summary');
+    if (mt.status === 'ok') drawTable(mt.data, sc);
+  });
+})();
+</script>
+
+<p class="site-foot">Powerwall 3 with solar in California on PG&amp;E. Data from the Tesla Fleet API through October 23, 2026.</p>
+</div>
+</body>
+</html>
